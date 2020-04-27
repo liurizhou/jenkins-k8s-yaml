@@ -1,0 +1,60 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jenkins
+  namespace: cicd
+  labels:
+    app: jenkins
+spec:
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: jenkins
+  template:
+    metadata:
+      labels:
+        app: jenkins
+        tier: jenkins
+    spec:
+      serviceAccount: jenkins-admin-sa 
+      containers:
+      - image: jenkins/jenkins:lts
+        name: jenkins
+        securityContext:
+          privileged: true
+        ports:
+        - containerPort: 8080
+          name: jenkins
+        - containerPort: 50000
+          name: agent
+          protocol: TCP
+        env:
+        - name: http_proxy
+          value: http://child-prc.intel.com:913/
+        - name: https_proxy
+          value: http://child-prc.intel.com:913/
+        volumeMounts:
+        - name: docker
+          mountPath: /var/run/docker.sock
+        - name: jenkins-persistent-storage
+          mountPath: /var/jenkins_home
+        - name: kube-config
+          mountPath: /root/.kube/config
+      dnsConfig:
+        nameservers:
+          - 127.0.1.1
+          - 10.248.2.5
+        searches:
+          - sh.intel.com
+      volumes:
+      - name: docker
+        hostPath:
+          path: /var/run/docker.sock
+      - name: jenkins-persistent-storage
+        persistentVolumeClaim:
+          claimName: jenkins-pvc
+      - name: kube-config
+        hostPath:
+          path: /root/.kube/config
+
